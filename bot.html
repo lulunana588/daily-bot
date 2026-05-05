@@ -384,13 +384,13 @@ body{font-family:-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;dis
             <textarea class="fta h2" id="f-lsd" placeholder="描述學習或分享的內容（例：整理Prompt心得分享給同事）"></textarea>
           </div>
         </div>
-      </div>
 
-      <div id="submit-bar">
-        <button class="sub-btn" id="sub-btn" onclick="submitDR()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
-          確認送出日報
-        </button>
+        <div style="padding:10px 0 30px">
+          <button class="sub-btn" id="sub-btn" onclick="submitDR()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+            確認送出日報
+          </button>
+        </div>
       </div>
     </div>
 
@@ -509,7 +509,7 @@ function goScreen(id) {
     if(s.id === id) { s.classList.remove('hidden','slide-back'); }
     else { s.classList.add('hidden'); s.classList.remove('slide-back'); }
   });
-  document.getElementById('submit-bar')?.classList.toggle('hide', id !== 's-form');
+
 }
 
 function goBack(id) {
