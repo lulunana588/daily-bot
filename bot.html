@@ -161,7 +161,7 @@ body{font-family:-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;dis
 .badge.ok{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:var(--emerald)}
 
 /* ── Form ── */
-.form-wrap{padding:0 14px 80px}
+.form-wrap{padding:0 14px 10px}
 .form-sec{
   background:var(--surface);border:1px solid var(--border);
   border-radius:13px;padding:14px;margin-bottom:10px;
@@ -197,10 +197,9 @@ body{font-family:-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;dis
 
 /* ── Fixed submit bar ── */
 #submit-bar{
-  position:absolute;bottom:0;left:0;right:0;z-index:10;
-  padding:10px 14px 18px;
-  background:rgba(10,16,28,.97);backdrop-filter:blur(24px);
-  border-top:1px solid var(--border);
+  padding:10px 14px 24px;
+  background:transparent;
+  flex-shrink:0;
 }
 #submit-bar.hide{display:none}
 .sub-btn{
@@ -345,7 +344,7 @@ body{font-family:-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;dis
     </div>
 
     <!-- Screen: Form -->
-    <div class="screen hidden" id="s-form">
+    <div class="screen hidden" id="s-form" style="display:flex;flex-direction:column;">
       <div class="back-row">
         <button class="back-btn" onclick="goBack('s-home')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
