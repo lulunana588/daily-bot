@@ -653,65 +653,92 @@ function renderWeekly(B) {
   const subs=getSubs(7);
   B.innerHTML=`<div class="hint-box">💡 依本週所有日報自動整理成可填入週報系統的格式</div>
   <div class="act-row">
-    <button class="abtn abtn-c" onclick="genWeekly()"><span id="ws" style="display:none" class="spin"></span>🤖 AI 生成週報</button>
+    <button class="abtn abtn-c" onclick="genWeekly()">📊 自動生成週報</button>
     <button class="abtn abtn-g" onclick="copyEl('wout')">📋 複製</button>
   </div>
   <div class="rpout" id="wout">${!subs.length?'（本週尚無日報記錄）':'點擊「AI 生成週報」✨'}</div>`;
 }
 
-async function genWeekly() {
+function genWeekly() {
   const subs=getSubs(7); if(!subs.length){showToast('本週無日報！');return;}
-  document.getElementById('ws').style.display='inline-block';
-  document.getElementById('wout').textContent='🤖 AI 正在整理...';
   const dateStr=new Date().toLocaleDateString('zh-TW');
   const weekAgo=new Date(Date.now()-7*864e5).toLocaleDateString('zh-TW');
-  const ds=subs.map(s=>`【${s.mn} ${s.mr} ${s.date}】\n工作重點: ${s.wf}\n待辦: ${s.pd}\nAgent: ${s.ac}次${s.hv?' 高價值: '+s.hvd:''}${s.ls?' 分享: '+s.lsd:''}`).join('\n\n');
-  try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',max_tokens:1800,
-      system:`你是行政組長Luna的助手，整理行政組週報。繁體中文輸出，格式適合填入週報系統（職能線·工作報告填報）：\n【工作報告·行政組AS-TW】\n填報週期：${weekAgo}～${dateStr}\n填報人：Luna（行政組長）\n部門：行政中心\n\n一、本週主要工作內容\n二、本週完成事項\n三、Agent使用情況匯整\n四、待辦事項/問題與風險\n五、下週工作計劃`,
-      messages:[{role:'user',content:`整理週報：\n\n${ds}`}]
-    })});
-    const d=await r.json();
-    document.getElementById('wout').textContent=d.content?.map(c=>c.text||'').join('')||'生成失敗';
-  }catch(e){document.getElementById('wout').textContent='⚠️ '+e.message;}
-  document.getElementById('ws').style.display='none';
+  const byM={};
+  MEMBERS.forEach(m=>{byM[m.id]={name:m.name,role:m.role,subs:[]};});
+  subs.forEach(s=>{if(byM[s.mid])byM[s.mid].subs.push(s);});
+  const totalAgent=subs.reduce((a,s)=>a+(s.ac||0),0);
+  const totalHV=subs.filter(s=>s.hv).length;
+  const totalLS=subs.filter(s=>s.ls).length;
+  let txt='【工作報告 · 行政組 AS-TW】\n';
+  txt+='填報週期：'+weekAgo+' ～ '+dateStr+'\n';
+  txt+='填報人：Luna（行政組長）\n部門：行政中心\n';
+  txt+='──────────────────────\n';
+  txt+='\n一、本週主要工作內容\n';
+  MEMBERS.forEach(m=>{
+    const ms=byM[m.id].subs; if(!ms.length) return;
+    txt+='\n【'+m.name+'・'+m.role+'】\n';
+    ms.forEach((s,i)=>{txt+='  '+(i+1)+'. '+s.wf+'\n';});
+  });
+  txt+='\n二、本週完成事項\n';
+  subs.forEach(s=>{txt+='・'+s.mn+'：'+s.wf.substring(0,60)+(s.wf.length>60?'…':'')+'\n';});
+  txt+='\n三、Agent 使用情況\n';
+  txt+='合計：'+totalAgent+'次 | 高價值：'+totalHV+'件 | 學習分享：'+totalLS+'次\n';
+  MEMBERS.forEach(m=>{
+    const ms=byM[m.id].subs; if(!ms.length) return;
+    const ta=ms.reduce((a,s)=>a+(s.ac||0),0);
+    const hv=ms.filter(s=>s.hv);
+    txt+='・'+m.name+'：'+ta+'次'+(hv.length?' ⭐'+hv.map(s=>s.hvd.substring(0,20)).join('、'):'')+' \n';
+  });
+  txt+='\n四、待辦事項 / 問題與風險\n';
+  const pds=subs.filter(s=>s.pd&&s.pd!=='無'&&s.pd!=='无');
+  if(pds.length) pds.forEach(s=>{txt+='・'+s.mn+'：'+s.pd+'\n';});
+  else txt+='本週無待辦事項\n';
+  txt+='\n五、下週工作計劃\n（請 Luna 補充下週重點方向）';
+  document.getElementById('wout').textContent=txt;
+  showToast('✅ 週報已生成！');
 }
 
-function renderBiweekly(B) {
-  const subs=getSubs(14);
-  B.innerHTML=`<div class="hint-box">💡 依雙週日報計算建議評分，可直接對應填入「业务-双周报」欄位</div>
-  <div class="act-row">
-    <button class="abtn abtn-a" onclick="genBiweekly()"><span id="bs" style="display:none" class="spin"></span>🤖 生成雙週報</button>
-    <button class="abtn abtn-g" onclick="copyEl('bout')">📋 複製</button>
-  </div>
-  <div class="rpout" id="bout" style="max-height:380px">${!subs.length?'（雙週尚無日報記錄）':'點擊「生成雙週報」✨'}</div>`;
-}
-
-async function genBiweekly() {
+function genBiweekly() {
   const subs=getSubs(14); if(!subs.length){showToast('雙週無日報！');return;}
-  document.getElementById('bs').style.display='inline-block';
-  document.getElementById('bout').textContent='🤖 AI 正在分析...';
   const byM={};
   MEMBERS.forEach(m=>{byM[m.id]={...m,subs:[]};});
   subs.forEach(s=>{if(byM[s.mid])byM[s.mid].subs.push(s);});
-  const mds=MEMBERS.map(m=>{
+  let txt='【雙週績效數據 · 行政組 AS-TW】\n'+'──────────────────────\n';
+  MEMBERS.forEach(m=>{
     const ms=byM[m.id].subs;
-    if(!ms.length) return `${m.name}（${m.role}）：無記錄`;
     const ta=ms.reduce((a,s)=>a+(s.ac||0),0);
-    const hvs=ms.filter(s=>s.hv).map(s=>s.hvd);
-    return `${m.name}（${m.role}）：${ms.length}篇 | Agent ${ta}次 | 高價值${hvs.length}次${hvs.length?'（'+hvs.join('、')+'）':''} | 學習分享${ms.filter(s=>s.ls).length}次 | 工作：${ms.map(s=>s.wf).join('; ')}`;
-  }).join('\n\n');
-  try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',max_tokens:2500,
-      system:`你是Luna的助手，整理雙週績效評分建議。繁體中文。每位成員固定格式：\n=== 姓名（角色）===\n◆ 績效評分\n成果完成度：XX分\n工作主動性：XX分\n協作貢獻度：XX分\n加權綜合分：XX分\n◆ Agent評分\n維1-使用頻次(30%)：XX分\n維2-高價值輸出(50%)：XX分\n維3-學習分享(20%)：XX分\nAgent綜合分：XX分\n◆ 評語\n◆ 本期亮點\n◆ 下期重點\n---`,
-      messages:[{role:'user',content:`雙週數據：\n\n${mds}`}]
-    })});
-    const d=await r.json();
-    document.getElementById('bout').textContent=d.content?.map(c=>c.text||'').join('')||'生成失敗';
-  }catch(e){document.getElementById('bout').textContent='⚠️ '+e.message;}
-  document.getElementById('bs').style.display='none';
+    const hv=ms.filter(s=>s.hv);
+    const ls=ms.filter(s=>s.ls);
+    const v1=Math.min(100,Math.round(ta/10*100));
+    const v2=Math.min(100,hv.length*25);
+    const v3=Math.min(100,ls.length*33);
+    const agentScore=Math.round(v1*0.3+v2*0.5+v3*0.2);
+    const complete=ms.length>=8?90:ms.length>=5?80:ms.length>=3?70:60;
+    const initiative=ta>=10?90:ta>=5?75:ta>=2?65:55;
+    const collab=ms.length>0?80:50;
+    const total=Math.round(complete*0.5+initiative*0.3+collab*0.2);
+    txt+='\n=== '+m.name+'（'+m.role+'）===\n';
+    txt+='◆ 績效評分\n';
+    txt+='  成果完成度：'+complete+' 分\n';
+    txt+='  工作主動性：'+initiative+' 分\n';
+    txt+='  協作貢獻度：'+collab+' 分\n';
+    txt+='  加權綜合分：'+total+' 分\n';
+    txt+='◆ Agent 評分\n';
+    txt+='  維1-使用頻次(30%)：'+v1+' 分（共'+ta+'次）\n';
+    txt+='  維2-高價值輸出(50%)：'+v2+' 分（共'+hv.length+'件）\n';
+    txt+='  維3-學習分享(20%)：'+v3+' 分（共'+ls.length+'次）\n';
+    txt+='  Agent綜合分：'+agentScore+' 分\n';
+    txt+='◆ 本期亮點\n';
+    if(hv.length) txt+='  '+hv.map(s=>s.hvd.substring(0,40)).join('；')+'\n';
+    else txt+='  本期無高價值任務記錄\n';
+    txt+='◆ 下期重點\n';
+    const pds=ms.filter(s=>s.pd&&s.pd!=='無');
+    if(pds.length) txt+='  '+pds[pds.length-1].pd.substring(0,60)+'\n';
+    else txt+='  （請 Luna 補充）\n';
+    txt+='──────────────────────\n';
+  });
+  document.getElementById('bout').textContent=txt;
+  showToast('✅ 雙週報已生成！');
 }
 
 function copyEl(id){
