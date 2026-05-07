@@ -656,7 +656,7 @@ function renderWeekly(B) {
     <button class="abtn abtn-c" onclick="genWeekly()">📊 自動生成週報</button>
     <button class="abtn abtn-g" onclick="copyEl('wout')">📋 複製</button>
   </div>
-  <div class="rpout" id="wout">${!subs.length?'（本週尚無日報記錄）':'點擊「AI 生成週報」✨'}</div>`;
+  <div class="rpout" id="wout">${!subs.length?'（本週尚無日報記錄）':'點擊「自動生成週報」✨'}</div>`;
 }
 
 function genWeekly() {
@@ -696,6 +696,17 @@ function genWeekly() {
   txt+='\n五、下週工作計劃\n（請 Luna 補充下週重點方向）';
   document.getElementById('wout').textContent=txt;
   showToast('✅ 週報已生成！');
+}
+
+function renderBiweekly(B) {
+  const subs=getSubs(14);
+  const empty=subs.length===0;
+  const el=document.createElement('div');
+  el.innerHTML='<div class="hint-box">💡 依雙週日報自動計算每人績效評分，對應填入「业务-双周报」欄位</div><div class="act-row"><button class="abtn abtn-a" id="bw-btn">📈 自動生成雙週報</button><button class="abtn abtn-g" id="bw-copy">📋 複製</button></div><div class="rpout" id="bout" style="max-height:380px">'+(empty?'（雙週尚無日報記錄）':'點擊「自動生成雙週報」✨')+'</div>';
+  B.innerHTML='';
+  B.appendChild(el);
+  document.getElementById('bw-btn').onclick=genBiweekly;
+  document.getElementById('bw-copy').onclick=function(){copyEl('bout');};
 }
 
 function genBiweekly() {
