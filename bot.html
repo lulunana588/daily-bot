@@ -458,6 +458,7 @@ body{font-family:-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;dis
 /* ── Config ── */
 const ADMIN_PWD = 'luna2026';
 const SKEY = 'as_tw_v3';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzOYWwoOGpLBBvkNO2QXOTBExnsdj0EHpQYKX7O1xEOZuCE0GyJjbwZmH8rrQRVOUTJ/exec';
 const MEMBERS = [
   {id:'yanyan',   name:'妍妍', role:'前台組'},
   {id:'xiaojing', name:'小菁', role:'前台組'},
@@ -560,21 +561,36 @@ function submitDR() {
     return;
   }
 
-  document.getElementById('sub-btn').disabled = true;
-  document.getElementById('sub-btn').innerHTML = `<span class="spin"></span> 送出中…`;
+  const btn = document.getElementById('sub-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 送出中…';
 
-  addSub({ mid:CUR.id, mn:CUR.name, mr:CUR.role,
+  const payload = {
+    action: 'submitDaily',
+    id: Date.now()+'',
+    mid: CUR.id, mn: CUR.name, mr: CUR.role,
     date: new Date().toLocaleDateString('zh-TW'),
     wf, pd, ac,
     hv: !!hvd, hvd,
     ls: !!lsd, lsd
-  });
+  };
+
+  // 存到 GAS / Sheets
+  fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify(payload)
+  }).catch(()=>{});
 
   const td = new Date().toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit',weekday:'long'});
   document.getElementById('done-msg').innerHTML =
-    `<b>${CUR.name}</b>（${CUR.role}）<br>📅 ${td}<br>🤖 Agent：${ac} 次` +
-    (hvd?`<br>🌟 ${hvd.substring(0,40)}`:'') +
-    `<br><br>Luna 組長已收到通知 📬`;
+    '<b>'+CUR.name+'</b>（'+CUR.role+'）<br>📅 '+td+'<br>🤖 Agent：'+ac+' 次'+
+    (hvd?'<br>🌟 '+hvd.substring(0,40):'')+
+    '<br><br>Luna 組長已收到通知 📬';
+
+  // 同時存到本機備份
+  addSub(payload);
 
   setTimeout(() => goScreen('s-done'), 400);
 }
@@ -608,17 +624,29 @@ function doAuth() {
   }
 }
 
-function sTab(t) {
+async function sTab(t) {
   PERIOD = PERIOD || 7;
   document.querySelectorAll('.atab').forEach((el,i)=>el.classList.toggle('on',['logs','weekly','biweekly'][i]===t));
   const B=document.getElementById('adm-body');
-  if(t==='logs') renderLogs(B);
-  else if(t==='weekly') renderWeekly(B);
-  else renderBiweekly(B);
+  B.innerHTML='<div class="empty">⏳ 載入中...</div>';
+  if(t==='logs') await renderLogs(B);
+  else if(t==='weekly') await renderWeekly(B);
+  else await renderBiweekly(B);
 }
 
-function renderLogs(B) {
-  const subs=getSubs(PERIOD);
+async function fetchSubs(days) {
+  try {
+    const r = await fetch(GAS_URL+'?action=getData&days='+days);
+    const j = await r.json();
+    return j.data || [];
+  } catch(e) {
+    // fallback to localStorage
+    return getSubs(days);
+  }
+}
+
+async function renderLogs(B) {
+  const subs=await fetchSubs(PERIOD);
   const byM={};
   MEMBERS.forEach(m=>{byM[m.id]={m,subs:[]};});
   subs.forEach(s=>{if(byM[s.mid])byM[s.mid].subs.push(s);});
@@ -649,8 +677,8 @@ function renderLogs(B) {
   B.innerHTML=h;
 }
 
-function renderWeekly(B) {
-  const subs=getSubs(7);
+async function renderWeekly(B) {
+  const subs=await fetchSubs(7);
   B.innerHTML=`<div class="hint-box">💡 依本週所有日報自動整理成可填入週報系統的格式</div>
   <div class="act-row">
     <button class="abtn abtn-c" onclick="genWeekly()">📊 自動生成週報</button>
@@ -659,8 +687,8 @@ function renderWeekly(B) {
   <div class="rpout" id="wout">${!subs.length?'（本週尚無日報記錄）':'點擊「自動生成週報」✨'}</div>`;
 }
 
-function genWeekly() {
-  const subs=getSubs(7); if(!subs.length){showToast('本週無日報！');return;}
+async function genWeekly() {
+  const subs=await fetchSubs(7); if(!subs.length){showToast('本週無日報！');return;}
   const dateStr=new Date().toLocaleDateString('zh-TW');
   const weekAgo=new Date(Date.now()-7*864e5).toLocaleDateString('zh-TW');
   const byM={};
@@ -709,8 +737,8 @@ function renderBiweekly(B) {
   document.getElementById('bw-copy').onclick=function(){copyEl('bout');};
 }
 
-function genBiweekly() {
-  const subs=getSubs(14); if(!subs.length){showToast('雙週無日報！');return;}
+async function genBiweekly() {
+  const subs=await fetchSubs(14); if(!subs.length){showToast('雙週無日報！');return;}
   const byM={};
   MEMBERS.forEach(m=>{byM[m.id]={...m,subs:[]};});
   subs.forEach(s=>{if(byM[s.mid])byM[s.mid].subs.push(s);});
@@ -758,11 +786,13 @@ function copyEl(id){
   navigator.clipboard.writeText(t).then(()=>showToast('✅ 已複製！'));
 }
 
-function delSub(id){
+async function delSub(id){
   if(!confirm('確定刪除這筆日報？')) return;
-  const d=ld();
-  d.subs=d.subs.filter(s=>s.id!==id);
-  sv(d);
+  try{
+    await fetch(GAS_URL+'?action=delete&id='+id);
+  }catch(e){}
+  // 同時刪本機備份
+  const d=ld(); d.subs=d.subs.filter(s=>s.id!==id); sv(d);
   showToast('已刪除 ✅');
   sTab('logs');
 }
