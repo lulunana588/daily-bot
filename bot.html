@@ -642,7 +642,7 @@ function renderLogs(B) {
   h+=`<div class="sec-title" style="margin-top:16px">明細（${subs.length} 篇）</div>`;
   [...subs].sort((a,b)=>b.ts-a.ts).slice(0,60).forEach(s=>{
     const d=new Date(s.ts).toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit',weekday:'short'});
-    h+=`<div class="sitem"><div class="si-hdr"><span class="si-name">${s.mn} <span style="font-size:10px;font-weight:400;color:var(--t3)">${s.mr}</span></span><span class="si-date">${d}</span></div>
+    h+=`<div class="sitem"><div class="si-hdr"><span class="si-name">${s.mn} <span style="font-size:10px;font-weight:400;color:var(--t3)">${s.mr}</span></span><span style="display:flex;align-items:center;gap:8px"><span class="si-date">${d}</span><button onclick="delSub('${s.id}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(251,113,133,.3);background:rgba(251,113,133,.08);color:var(--rose);cursor:pointer;font-family:inherit">刪除</button></span></div>
     <div class="si-body"><b style="color:var(--t1)">工作：</b>${s.wf}<br><b style="color:var(--t1)">待辦：</b>${s.pd}<br>🤖 ${s.ac}次${s.hv?`<span class="si-tag-i hv">高價值</span> ${s.hvd}`:''}${s.ls?`<br>📚 ${s.lsd}`:''}
     </div></div>`;
   });
@@ -745,6 +745,15 @@ function copyEl(id){
   const t=document.getElementById(id)?.textContent||'';
   if(!t||t.includes('點擊')||t.includes('尚無')){showToast('尚無內容');return;}
   navigator.clipboard.writeText(t).then(()=>showToast('✅ 已複製！'));
+}
+
+function delSub(id){
+  if(!confirm('確定刪除這筆日報？')) return;
+  const d=ld();
+  d.subs=d.subs.filter(s=>s.id!==id);
+  sv(d);
+  showToast('已刪除 ✅');
+  sTab('logs');
 }
 
 function showToast(msg){
